@@ -249,6 +249,14 @@ static void mm_ServerDeactivate(void) {
 	// Plugins->retry_all(PT_CHANGELEVEL);
 	g_Players.clear_all_cvar_queries();
 	requestid_counter = 0;
+	
+	if (!Config->slowhooks) {
+		// enable slow hooks now just in case the next map needs them during MapInit (before ServerActivate)
+		GIVE_ENGINE_FUNCTIONS_FN pfn_give_engfuncs = (GIVE_ENGINE_FUNCTIONS_FN)DLSYM(GameDLL.handle, "GiveFnptrsToDll");
+		pfn_give_engfuncs(&g_slow_hooks_table_engine, gpGlobals);
+		memcpy(g_engine_dll_funcs_table, &g_slow_hooks_table_dll, sizeof(DLL_FUNCTIONS));
+	}
+	
 	RETURN_API_void();
 }
 static void mm_PlayerPreThink(edict_t *pEntity) {
