@@ -212,17 +212,16 @@ bool shouldExpensiveHooksBeEnabled(const char* gameMap) {
 static void mm_ServerActivate(edict_t *pEdictList, int edictCount, int clientMax) {
 
 	if (!Config->slowhooks) {
-		GIVE_ENGINE_FUNCTIONS_FN pfn_give_engfuncs = (GIVE_ENGINE_FUNCTIONS_FN)DLSYM(GameDLL.handle, "GiveFnptrsToDll");
-
 		if (shouldExpensiveHooksBeEnabled(STRING(gpGlobals->mapname))) {
 			META_WARNING("Expensive metamod hooks enabled.");
-			pfn_give_engfuncs(&g_slow_hooks_table_engine, gpGlobals);
-			memcpy(g_engine_dll_funcs_table, &g_slow_hooks_table_dll, sizeof(DLL_FUNCTIONS));
+			// already enabled during ServerDeactivate or by default when metamod loads
 		}
 		else {
 			META_WARNING("Expensive metamod hooks disabled.");
+			GIVE_ENGINE_FUNCTIONS_FN pfn_give_engfuncs = (GIVE_ENGINE_FUNCTIONS_FN)DLSYM(GameDLL.handle, "GiveFnptrsToDll");
 			pfn_give_engfuncs(&g_fast_hooks_table_engine, gpGlobals);
 			memcpy(g_engine_dll_funcs_table, &g_fast_hooks_table_dll, sizeof(DLL_FUNCTIONS));
+			g_fast_hooks_table_newdll.copy_to(g_engine_newdll_funcs_table);
 		}
 	}
 
@@ -255,6 +254,7 @@ static void mm_ServerDeactivate(void) {
 		GIVE_ENGINE_FUNCTIONS_FN pfn_give_engfuncs = (GIVE_ENGINE_FUNCTIONS_FN)DLSYM(GameDLL.handle, "GiveFnptrsToDll");
 		pfn_give_engfuncs(&g_slow_hooks_table_engine, gpGlobals);
 		memcpy(g_engine_dll_funcs_table, &g_slow_hooks_table_dll, sizeof(DLL_FUNCTIONS));
+		g_slow_hooks_table_newdll.copy_to(g_engine_newdll_funcs_table);
 	}
 	
 	RETURN_API_void();
@@ -527,37 +527,36 @@ C_DLLEXPORT int GetEntityAPI2(DLL_FUNCTIONS *pFunctionTable, int *interfaceVersi
 
 	if (!Config->slowhooks) {
 		memcpy(&g_slow_hooks_table_dll, &gFunctionTable, sizeof(DLL_FUNCTIONS));
+		memcpy(&g_fast_hooks_table_dll, &gFunctionTable, sizeof(DLL_FUNCTIONS));
 
 		// disabling expensive hooks to improve linux performance 
 		// AddToFullPack is by far the most expensive (>40% of all hook calls)
-		gFunctionTable.pfnAddToFullPack = GameDLL.funcs.dllapi_table->pfnAddToFullPack;
-		gFunctionTable.pfnThink = GameDLL.funcs.dllapi_table->pfnThink;
-		gFunctionTable.pfnSetAbsBox = GameDLL.funcs.dllapi_table->pfnSetAbsBox;
-		gFunctionTable.pfnTouch = GameDLL.funcs.dllapi_table->pfnTouch;
+		g_fast_hooks_table_dll.pfnAddToFullPack = GameDLL.funcs.dllapi_table->pfnAddToFullPack;
+		g_fast_hooks_table_dll.pfnThink = GameDLL.funcs.dllapi_table->pfnThink;
+		g_fast_hooks_table_dll.pfnSetAbsBox = GameDLL.funcs.dllapi_table->pfnSetAbsBox;
+		g_fast_hooks_table_dll.pfnTouch = GameDLL.funcs.dllapi_table->pfnTouch;
 
 		// disabling more hooks that seem totally useless, for a minor performance improvement
-		gFunctionTable.pfnSave = GameDLL.funcs.dllapi_table->pfnSave;
-		gFunctionTable.pfnRestore = GameDLL.funcs.dllapi_table->pfnRestore;
-		gFunctionTable.pfnSaveWriteFields = GameDLL.funcs.dllapi_table->pfnSaveWriteFields;
-		gFunctionTable.pfnSaveReadFields = GameDLL.funcs.dllapi_table->pfnSaveReadFields;
-		gFunctionTable.pfnSaveGlobalState = GameDLL.funcs.dllapi_table->pfnSaveGlobalState;
-		gFunctionTable.pfnRestoreGlobalState = GameDLL.funcs.dllapi_table->pfnRestoreGlobalState;
-		gFunctionTable.pfnResetGlobalState = GameDLL.funcs.dllapi_table->pfnResetGlobalState;
-		gFunctionTable.pfnParmsNewLevel = GameDLL.funcs.dllapi_table->pfnParmsNewLevel; // just use ChangeLeve or ServerActivate/Deactivate
-		gFunctionTable.pfnPlayerCustomization = GameDLL.funcs.dllapi_table->pfnPlayerCustomization;
-		gFunctionTable.pfnPM_FindTextureType = GameDLL.funcs.dllapi_table->pfnPM_FindTextureType;
-		gFunctionTable.pfnSetupVisibility = GameDLL.funcs.dllapi_table->pfnSetupVisibility;
-		gFunctionTable.pfnUpdateClientData = GameDLL.funcs.dllapi_table->pfnUpdateClientData;
-		gFunctionTable.pfnCreateBaseline = GameDLL.funcs.dllapi_table->pfnCreateBaseline;
-		gFunctionTable.pfnRegisterEncoders = GameDLL.funcs.dllapi_table->pfnRegisterEncoders;
-		gFunctionTable.pfnGetWeaponData = GameDLL.funcs.dllapi_table->pfnGetWeaponData;
-		gFunctionTable.pfnConnectionlessPacket = GameDLL.funcs.dllapi_table->pfnConnectionlessPacket;
-		gFunctionTable.pfnGetHullBounds = GameDLL.funcs.dllapi_table->pfnGetHullBounds;
-		gFunctionTable.pfnCreateInstancedBaselines = GameDLL.funcs.dllapi_table->pfnCreateInstancedBaselines;
-		gFunctionTable.pfnInconsistentFile = GameDLL.funcs.dllapi_table->pfnInconsistentFile;
-		gFunctionTable.pfnAllowLagCompensation = GameDLL.funcs.dllapi_table->pfnAllowLagCompensation;
-
-		memcpy(&g_fast_hooks_table_dll, &gFunctionTable, sizeof(DLL_FUNCTIONS));
+		g_fast_hooks_table_dll.pfnSave = GameDLL.funcs.dllapi_table->pfnSave;
+		g_fast_hooks_table_dll.pfnRestore = GameDLL.funcs.dllapi_table->pfnRestore;
+		g_fast_hooks_table_dll.pfnSaveWriteFields = GameDLL.funcs.dllapi_table->pfnSaveWriteFields;
+		g_fast_hooks_table_dll.pfnSaveReadFields = GameDLL.funcs.dllapi_table->pfnSaveReadFields;
+		g_fast_hooks_table_dll.pfnSaveGlobalState = GameDLL.funcs.dllapi_table->pfnSaveGlobalState;
+		g_fast_hooks_table_dll.pfnRestoreGlobalState = GameDLL.funcs.dllapi_table->pfnRestoreGlobalState;
+		g_fast_hooks_table_dll.pfnResetGlobalState = GameDLL.funcs.dllapi_table->pfnResetGlobalState;
+		g_fast_hooks_table_dll.pfnParmsNewLevel = GameDLL.funcs.dllapi_table->pfnParmsNewLevel; // just use ChangeLeve or ServerActivate/Deactivate
+		g_fast_hooks_table_dll.pfnPlayerCustomization = GameDLL.funcs.dllapi_table->pfnPlayerCustomization;
+		g_fast_hooks_table_dll.pfnPM_FindTextureType = GameDLL.funcs.dllapi_table->pfnPM_FindTextureType;
+		g_fast_hooks_table_dll.pfnSetupVisibility = GameDLL.funcs.dllapi_table->pfnSetupVisibility;
+		g_fast_hooks_table_dll.pfnUpdateClientData = GameDLL.funcs.dllapi_table->pfnUpdateClientData;
+		g_fast_hooks_table_dll.pfnCreateBaseline = GameDLL.funcs.dllapi_table->pfnCreateBaseline;
+		g_fast_hooks_table_dll.pfnRegisterEncoders = GameDLL.funcs.dllapi_table->pfnRegisterEncoders;
+		g_fast_hooks_table_dll.pfnGetWeaponData = GameDLL.funcs.dllapi_table->pfnGetWeaponData;
+		g_fast_hooks_table_dll.pfnConnectionlessPacket = GameDLL.funcs.dllapi_table->pfnConnectionlessPacket;
+		g_fast_hooks_table_dll.pfnGetHullBounds = GameDLL.funcs.dllapi_table->pfnGetHullBounds;
+		g_fast_hooks_table_dll.pfnCreateInstancedBaselines = GameDLL.funcs.dllapi_table->pfnCreateInstancedBaselines;
+		g_fast_hooks_table_dll.pfnInconsistentFile = GameDLL.funcs.dllapi_table->pfnInconsistentFile;
+		g_fast_hooks_table_dll.pfnAllowLagCompensation = GameDLL.funcs.dllapi_table->pfnAllowLagCompensation;
 	}
 	
 	g_engine_dll_funcs_table = pFunctionTable;
@@ -614,9 +613,11 @@ C_DLLEXPORT int GetNewDLLFunctions(NEW_DLL_FUNCTIONS *pNewFunctionTable, int *in
 	// disabling hooks for improved linux performance
 	if (!Config->slowhooks) {
 		sNewFunctionTable.copy_to(&g_slow_hooks_table_newdll);
-		sNewFunctionTable.pfnShouldCollide = GameDLL.funcs.newapi_table->pfnShouldCollide;
-		sNewFunctionTable.pfnOnFreeEntPrivateData = GameDLL.funcs.newapi_table->pfnOnFreeEntPrivateData;
 		sNewFunctionTable.copy_to(&g_fast_hooks_table_newdll);
+		g_engine_newdll_funcs_table = pNewFunctionTable;
+
+		g_fast_hooks_table_newdll.pfnShouldCollide = GameDLL.funcs.newapi_table->pfnShouldCollide;
+		g_fast_hooks_table_newdll.pfnOnFreeEntPrivateData = GameDLL.funcs.newapi_table->pfnOnFreeEntPrivateData;
 	}
 
 	sNewFunctionTable.copy_to(pNewFunctionTable);

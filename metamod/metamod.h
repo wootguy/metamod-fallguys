@@ -122,15 +122,16 @@ extern int metamod_not_loaded DLLHIDDEN;
 // function tables that have all hooks enabled
 extern meta_enginefuncs_t g_slow_hooks_table_engine;
 extern DLL_FUNCTIONS g_slow_hooks_table_dll;
-extern NEW_DLL_FUNCTIONS g_slow_hooks_table_newdll;
+extern meta_new_dll_functions_t g_slow_hooks_table_newdll;
 
 // function tables which have expensive hooks disabled
 extern meta_enginefuncs_t g_fast_hooks_table_engine;
 extern DLL_FUNCTIONS g_fast_hooks_table_dll;
-extern NEW_DLL_FUNCTIONS g_fast_hooks_table_newdll;
+extern meta_new_dll_functions_t g_fast_hooks_table_newdll;
 
 // pointer to the engine's dll function table. For enabling/disabling hooks without a restart.
 extern DLL_FUNCTIONS* g_engine_dll_funcs_table;
+extern NEW_DLL_FUNCTIONS* g_engine_newdll_funcs_table;
 
 // Holds cached player info, right now only things for querying cvars
 // Max players is always 32, small enough that we can use a static array
